@@ -10,7 +10,6 @@ from hashlib import sha1
 import binascii
 import re
 
-# 配置参数
 OUTPUT_DIR = "./output"     # 保存解密文件的目录
 
 # 创建输出目录
@@ -19,7 +18,6 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 # 0. 暴力破解Wifi密码
 def crack_wifi_password(essid, wordlist, pcap_file):
     try:
-        # 构建命令
         command = [
             'aircrack-ng',
             '-e', essid,
@@ -36,7 +34,6 @@ def crack_wifi_password(essid, wordlist, pcap_file):
             text=True
         )
 
-        # 实时监控输出
         key_found = None
         error_message = None
         while True:
@@ -46,7 +43,6 @@ def crack_wifi_password(essid, wordlist, pcap_file):
             if output:
                 # print(output.strip())
 
-                # 检查是否找到密钥
                 if "KEY FOUND!" in output:
                     match = re.search(r"KEY FOUND! \[ (.*?) \]", output)
                     if match:
@@ -117,7 +113,6 @@ def extract_http_data(decrypted_pcap):
             continue
     print("[*] HTTP 数据提取完成")
 
-# 主流程
 if __name__ == "__main__":
     # 创建参数解析器
     parser = argparse.ArgumentParser(description='破解WiFi密码和抓包数据')
