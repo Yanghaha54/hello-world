@@ -30,32 +30,28 @@ def crack_wifi_password(essid, wordlist, pcap_file):
         process = subprocess.Popen(
             command,
             stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True
+            stderr=subprocess.STDOUT, 
+            text=True 
         )
+
+        stdout, _ = process.communicate()
 
         key_found = None
         error_message = None
-        while True:
-            output = process.stdout.readline()
-            if output == '' and process.poll() is not None:
-                break
-            if output:
-                # print(output.strip())
 
-                if "KEY FOUND!" in output:
-                    match = re.search(r"KEY FOUND! \[ (.*?) \]", output)
-                    if match:
-                        key_found = match.group(1)
-                elif "Packets contained no EAPOL data; unable to process this AP." in output:
-                    error_message = output.strip()
+        for output_line in stdout.splitlines():
+            if "KEY FOUND!" in output_line:
+                match = re.search(r"KEY FOUND! \[ (.*?) \]", output_line)
+                if match:
+                    key_found = match.group(1)
+            elif "Packets contained no EAPOL data; unable to process this AP." in output_line:
+                error_message = output_line.strip()
 
         return key_found, error_message
 
     except Exception as e:
-        print(f"[Error]执行过程中出错: {str(e)}")
-        return None
-
+        print(f"[Error] 执行过程中出错: {str(e)}")
+        return None, str(e)
 
 # 1. 提取握手包并验证
 def extract_handshake(pcap_file):
