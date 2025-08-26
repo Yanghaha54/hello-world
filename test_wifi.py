@@ -30,8 +30,8 @@ def crack_wifi_password(essid, wordlist, pcap_file):
         process = subprocess.Popen(
             command,
             stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True
+            stderr=subprocess.STDOUT, 
+            text=True 
         )
 
         stdout, _ = process.communicate()
@@ -46,9 +46,6 @@ def crack_wifi_password(essid, wordlist, pcap_file):
                     key_found = match.group(1)
             elif "Packets contained no EAPOL data; unable to process this AP." in output_line:
                 error_message = output_line.strip()
-            else:
-                print("[Error] 离线字典破解密码失败，无法破解Wifi密码，后续程序无法执行，请丰富离线字典！")
-                sys.exit(1)
 
         return key_found, error_message
 
@@ -133,6 +130,9 @@ if __name__ == "__main__":
     elif ERROR_MESSAGE:
         print("[ERROR]:", ERROR_MESSAGE)
         print("[ERROR]：破解WiFi密码失败,抓包文件中缺少必要的四次握手数据")
+        sys.exit(1)
+    elif ERROR_MESSAGE is None and WIFI_PASSWORD is None:
+        print("[Error] 离线字典破解密码失败，无法破解Wifi密码，后续程序无法执行，请丰富离线字典！")
         sys.exit(1)
 
     handshake_packets = extract_handshake(PCAP_FILE)
