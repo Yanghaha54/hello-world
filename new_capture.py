@@ -105,9 +105,29 @@ class WifiAnalyzer:
             print(f"[ERROR] 设置监控模式失败: {e.stderr}")
             return False
         except subprocess.TimeoutExpired:
-            print(f"[*] 扫描超时，将手动输入BSSID和信道")
-            self.bssid = input("[+] 请输入目标WiFi的BSSID: ").strip()
-            self.channel = input("[+] 请输入目标WiFi的信道: ").strip()
+            print(f"[*] 扫描超时（10秒），正在检查是否已生成扫描结果...")
+            
+            scan_file = "/tmp/scan-01.csv"
+            if os.path.exists(scan_file):
+                print(f"[*] 发现扫描文件 {scan_file}，尝试提取信息...")
+                with open(scan_file, "r", encoding="utf-8", errors="ignore") as f:
+                    for line in f:
+                        if self.ssid in line and "WPA2" in line:
+                            parts = line.strip().split(",")
+                            self.bssid = parts[0].strip()
+                            self.channel = parts[3].strip()
+                            break
+                os.remove(scan_file)  # 无论是否提取成功，都删除临时文件
+    
+            # 若解析到有效信息，则无需手动输入
+            if self.bssid and self.channel:
+                print(f"[✅] 超时但成功提取信息！BSSID: {self.bssid}，信道: {self.channel}")
+            else:
+                print(f"[WARNING] 超时且未提取到有效信息，需手动输入")
+                self.bssid = input("[+] 请输入目标WiFi的BSSID: ").strip()
+                self.channel = input("[+] 请输入目标WiFi的信道: ").strip()
+
+            # 锁定信道
             subprocess.run(["sudo", "iwconfig", self.monitor_interface, "channel", self.channel], check=True)
             return True
         except Exception as e:
@@ -151,7 +171,7 @@ class WifiAnalyzer:
         print(f"[*] 开始第{self.capture_count}次捕获（airodump-ng），数据将保存到 {filename}.pcap")
         
         # 启动airodump-ng进程（单独线程监控停止信号）
-        self.capture_process = subprocess.Popen(cmd)zh
+        self.capture_process = subprocess.Popen(cmd)
         try:
             # 等待用户按Ctrl+C停止抓包（airodump-ng需用Ctrl+C终止）
             self.capture_process.wait()
