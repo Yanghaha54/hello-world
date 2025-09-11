@@ -189,9 +189,25 @@ class WifiAnalyzer:
             file_size = os.path.getsize(full_filename)
             # 检查是否包含四次握手包
             try:
-                with pyshark.FileCapture(full_filename, display_filter="eapol", keep_packets=False,async_=False) as capture:
-                    eapol_packets = list(capture)  # 强制同步解析
-                    eapol_count = len(eapol_packets)
+                # 1. 创建捕获对象（不指定async_参数，兼容旧版本）
+                capture = pyshark.FileCapture(
+                full_filename, 
+                display_filter="eapol", 
+                keep_packets=False
+                )
+        
+                # 2. 强制解析并计数（同步操作）
+                eapol_packets = list(capture)  # 立即加载所有EAPOL包
+                eapol_count = len(eapol_packets)
+        
+                # 3. 显式关闭资源（关键：手动终止进程，避免残留）
+                capture.close()
+                if hasattr(capture, '_running_processes'):
+                    for proc in capture._running_processes:
+                        if proc.poll() is None:
+                            proc.terminate()
+        
+                # 4. 判断结果
                 if eapol_count >= 4:
                     print(f"[✅] 捕获成功！包含 {eapol_count} 个EAPOL握手包，文件: {full_filename}（{file_size}字节）")
                     self.capture_files.append(full_filename)
@@ -200,10 +216,37 @@ class WifiAnalyzer:
                     print(f"[WARNING] 捕获文件无完整握手包（仅{eapol_count}个EAPOL包），已删除")
                     os.remove(full_filename)
                     return None
+    
+            except TypeError as e:
+                # 处理参数不兼容错误（如旧版本不支持某些参数）
+                print(f"[WARNING] pyshark版本兼容问题: {str(e)}，尝试简化解析逻辑...")
+                # 简化版：用tshark命令行替代pyshark（彻底避开异步问题）
+                try:
+                    # 直接调用tshark统计EAPOL包数量
+                    result = subprocess.run(
+                        ["tshark", "-r", full_filename, "-Y", "eapol", "-c", "4"],
+                        capture_output=True, text=True
+                        )
+                    # 只要能找到≥4个EAPOL包，就认为有效
+                    eapol_count = len(result.stdout.splitlines())
+                    if eapol_count >=4:
+                        print(f"[✅] 捕获成功！包含 ≥4 个EAPOL握手包，文件: {full_filename}")
+                        self.capture_files.append(full_filename)
+                        return full_filename
+                    else:
+                        print(f"[WARNING] 捕获文件无完整握手包（仅{eapol_count}个EAPOL包）")
+                        os.remove(full_filename)
+                        return None
+                except Exception as e2:
+                    print(f"[WARNING] 备用解析方法出错: {str(e2)}，保留文件")
+                    self.capture_files.append(full_filename)
+                    return full_filename
+
             except Exception as e:
                 print(f"[WARNING] 检查握手包出错: {str(e)}，保留文件: {full_filename}")
                 self.capture_files.append(full_filename)
                 return full_filename
+
         else:
             print(f"[WARNING] 捕获文件 {full_filename} 未生成")
             return None
