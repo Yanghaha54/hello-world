@@ -189,8 +189,9 @@ class WifiAnalyzer:
             file_size = os.path.getsize(full_filename)
             # 检查是否包含四次握手包
             try:
-                capture = pyshark.FileCapture(full_filename, display_filter="eapol", keep_packets=False)
-                eapol_count = len([pkt for pkt in capture])
+                with pyshark.FileCapture(full_filename, display_filter="eapol", keep_packets=False,async_=False) as capture:
+                    eapol_packets = list(capture)  # 强制同步解析
+                    eapol_count = len(eapol_packets)
                 if eapol_count >= 4:
                     print(f"[✅] 捕获成功！包含 {eapol_count} 个EAPOL握手包，文件: {full_filename}（{file_size}字节）")
                     self.capture_files.append(full_filename)
