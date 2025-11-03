@@ -425,7 +425,7 @@ def calculate_tk(pmk_hex, handshake_info):
     # 4. 提取TK（PTK的后16字节）
     tk = ptk[-16:]  # TK=PTK[32:48]
     tk_hex = tk.hex().lower()
-    print(f"计算完成：\n- PTK（48字节）: {ptk.hex().lower()}\n- TK（16字节）: {tk_hex}")
+    print(f"[*] 计算完成：\n- PTK（48字节）: {ptk.hex().lower()}\n- TK（16字节）: {tk_hex}")
     return tk_hex
 
 
@@ -435,7 +435,7 @@ def decrypt_pcap_with_tshark(input_pcap, tk_hex, output_bin):
     """
     # 验证输入文件
     if not os.path.exists(input_pcap):
-        print(f"错误：输入文件 {input_pcap} 不存在")
+        print(f"[ERROR] 错误：输入文件 {input_pcap} 不存在")
         return False
     
     try:
@@ -464,7 +464,7 @@ def decrypt_pcap_with_tshark(input_pcap, tk_hex, output_bin):
             print(f"错误：未生成输出文件 {output_bin}")
             return False
         
-        print(f"成功提取TCP payload至 {output_bin}（大小：{os.path.getsize(output_bin)/1024:.2f} KB）")
+        print(f"[*] 成功提取TCP payload至 {output_bin}（大小：{os.path.getsize(output_bin)/1024:.2f} KB）")
         return True
     
     except subprocess.CalledProcessError as e:
@@ -486,7 +486,7 @@ def extract_all_images_from_decrypt_data(bin_path, output_dir):
     with open(bin_path, "rb") as f:
         bin_data = f.read()
     total_size = len(bin_data)
-    print(f"读取二进制数据，总大小：{total_size / 1024:.2f} KB")
+    print(f"[*] 读取二进制数据，总大小：{total_size / 1024:.2f} KB")
 
     # 魔术数配置（JPG/JPEG共用魔术数，统一处理）
     magic_config = [
@@ -510,7 +510,7 @@ def extract_all_images_from_decrypt_data(bin_path, output_dir):
     valid_count = 1  # 有效图片计数
     processed = set()  # 存储已处理的魔术数位置（去重）
 
-    print(f"\n开始提取图片...")
+    print(f"\n[*] 开始提取图片...")
     # 遍历两种格式
     for cfg in magic_config:
         magic = cfg["magic"]
@@ -565,12 +565,12 @@ def extract_all_images_from_decrypt_data(bin_path, output_dir):
             with open(img_path, "wb") as f:
                 f.write(candidate)
 
-            print(f"  提取有效{img_type.upper()}：{os.path.basename(img_path)}（大小：{len(candidate)/1024:.2f} KB）")
+            print(f"[*] 提取有效{img_type.upper()}：{os.path.basename(img_path)}（大小：{len(candidate)/1024:.2f} KB）")
             valid_count += 1
             img_count += 1
             pos += 1  # 移动1字节，确保后续魔术数不被跳过
 
-    print(f"\n提取完成！共得到 {valid_count - 1} 张有效图片，保存至 {output_dir}")
+    print(f"\n[*] 提取完成！共得到 {valid_count - 1} 张有效图片，保存至 {output_dir}")
 
 def main():
     """主函数：串联全流程"""
